@@ -26,13 +26,18 @@ rgb_custom = rgb_torchvision.permute(1, 2, 0).contiguous()
 custom_grayscale.grayscale(rgb_custom, gray_custom)
 assert torch.allclose(gray_torchvision, gray_custom)
 
+# Warmup
+for _ in range(10):
+    custom_grayscale.grayscale(rgb_custom, gray_custom)
+    rgb_to_grayscale(rgb_torchvision)
+
 # Benchmark custom
 t0 = torch.cuda.Event(enable_timing=True)
 t1 = torch.cuda.Event(enable_timing=True)
 torch.cuda.synchronize()
 t0.record()
+custom_out = torch.empty(H, W, dtype=torch.float32).to("cuda")
 for _ in range(num_iters):
-    custom_out = torch.empty(H, W, dtype=torch.float32).to("cuda")
     custom_grayscale.grayscale(rgb_torchvision, custom_out)
 torch.cuda.synchronize()
 t1.record()
@@ -53,7 +58,7 @@ print("Torchvision: ", t0.elapsed_time(t1) / num_iters)
 Outputs on my machine:
 
 ```
-Custom (before my tweaks): 0.2858499755859375
-Custom (after my tweaks): 0.204087646484375
-Torchvision: 0.42854196166992187
+Custom (before my tweaks): 0.11653533172607422
+Custom (after my tweaks): 0.10560717010498047
+Torchvision: 0.6291329956054688
 ```
