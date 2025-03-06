@@ -10,3 +10,4 @@ __pycache__/
 *.o
 benchmark.py
 submission.py
+test.py
