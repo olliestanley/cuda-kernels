@@ -28,7 +28,9 @@ __global__ void matmul_kernel(float *d_A_ptr, float *d_B_ptr, float *d_C_ptr, in
 
     const int num_tiles = ceil(A_n_cols / (float) tiles_A_cols);
 
+    // accumulate ELEMENTS_PER_THREAD values in a register before writing to global memory
     float value[ELEMENTS_PER_THREAD] = {0.0f};
+
     for (int tile = 0; tile < num_tiles; tile++) {
         // load tiles into shared memory
         int aRow = blockIdx.y * tiles_A_rows + A_view_ty;
@@ -49,16 +51,19 @@ __global__ void matmul_kernel(float *d_A_ptr, float *d_B_ptr, float *d_C_ptr, in
         __syncthreads();
 
         for (int j = 0; j < tiles_A_cols; j++) {
-            float B_val_register = B_shared[j][B_view_tx];
+            // load to a register before loop, avoiding repeated shared memory accesses
+            float B_val = B_shared[j][B_view_tx];
+
             // compute dot product
             for (int c = 0; c < ELEMENTS_PER_THREAD; c++) {
-                value[c] += A_shared[B_view_ty * ELEMENTS_PER_THREAD + c][j] * B_val_register;
+                value[c] += A_shared[B_view_ty * ELEMENTS_PER_THREAD + c][j] * B_val;
             }
         }
         // sync ensures all threads have finished computation
         __syncthreads();
     }
 
+    // finally, write to global memory
     for (int c = 0; c < ELEMENTS_PER_THREAD; c++) {
         if (row_start + c < C_n_rows && col < C_n_cols) {
             d_C_ptr[(row_start + c) * C_n_cols + col] = 1 * value[c] + 0 * d_C_ptr[(row_start + c) * C_n_cols + col];
