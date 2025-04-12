@@ -21,8 +21,8 @@ __global__ void matmul_kernel(float *d_A_ptr, float *d_B_ptr, float *d_C_ptr, in
     static_assert(n_threads_per_block % TILE_B_COLS == 0);
 
     // we will use vectorised memory accesses of 4, hence these checks
-    static_assert(TILES_A_COLS % 4 == 0);
-    static_assert(TILES_B_COLS % 4 == 0);
+    static_assert(TILE_A_COLS % 4 == 0);
+    static_assert(TILE_B_COLS % 4 == 0);
     assert(C_n_rows % 4 == 0);
     assert(C_n_cols % 4 == 0);
     assert(A_n_cols % 4 == 0);
