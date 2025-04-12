@@ -67,15 +67,15 @@ __global__ void matmul_kernel(float *d_A_ptr, float *d_B_ptr, float *d_C_ptr, in
 
             if (global_row < C_n_rows && global_col < A_n_cols) {
                 float4 A_tmp = reinterpret_cast<float4*>(&d_A_ptr[global_row * A_n_cols + global_col])[0];
-                A_shared[shared_start_row][shared_col] = A_tmp.x;
-                A_shared[shared_start_row + 1][shared_col] = A_tmp.y;
-                A_shared[shared_start_row + 2][shared_col] = A_tmp.z;
-                A_shared[shared_start_row + 3][shared_col] = A_tmp.w;
+                A_shared[A_shared_start_row][shared_col] = A_tmp.x;
+                A_shared[A_shared_start_row + 1][shared_col] = A_tmp.y;
+                A_shared[A_shared_start_row + 2][shared_col] = A_tmp.z;
+                A_shared[A_shared_start_row + 3][shared_col] = A_tmp.w;
             } else {
-                A_shared[shared_start_row][shared_col] = 0.0f;
-                A_shared[shared_start_row + 1][shared_col] = 0.0f;
-                A_shared[shared_start_row + 2][shared_col] = 0.0f;
-                A_shared[shared_start_row + 3][shared_col] = 0.0f;
+                A_shared[A_shared_start_row][shared_col] = 0.0f;
+                A_shared[A_shared_start_row + 1][shared_col] = 0.0f;
+                A_shared[A_shared_start_row + 2][shared_col] = 0.0f;
+                A_shared[A_shared_start_row + 3][shared_col] = 0.0f;
             }
         }
 
