@@ -15,9 +15,9 @@
 // cols per tile of matrix B
 #define TILE_B_COLS 128
 
-template <bool BetaZero>
+template <bool AlphaOne, bool BetaZero>
 
-__global__ void matmul_kernel(float *d_A_ptr, float *d_B_ptr, float *d_C_ptr, int C_n_rows, int C_n_cols, int A_n_cols, float beta) {
+__global__ void matmul_kernel(float *d_A_ptr, float *d_B_ptr, float *d_C_ptr, int C_n_rows, int C_n_cols, int A_n_cols, float alpha, float beta) {
     const int n_threads_per_block = TILE_A_ROWS * TILE_B_COLS / (ROWS_PER_THREAD * COLS_PER_THREAD);
     static_assert(n_threads_per_block % TILE_A_COLS == 0);
     static_assert(n_threads_per_block % TILE_B_COLS == 0);
@@ -130,17 +130,21 @@ __global__ void matmul_kernel(float *d_A_ptr, float *d_B_ptr, float *d_C_ptr, in
             int global_col = blockIdx.x * TILE_B_COLS + col_start + x;
             if (global_row < C_n_rows && global_col < C_n_cols) {
                 int idx = global_row * C_n_cols + global_col;
-                if constexpr(BetaZero) {
+                if constexpr(AlphaOne && BetaZero) {
                     d_C_ptr[idx] = value[y][x];
-                } else {
+                } else if constexpr(AlphaOne) {
                     d_C_ptr[idx] = value[y][x] + beta * d_C_ptr[idx];
+                } else if constexpr(BetaZero) {
+                    d_C_ptr[idx] = alpha * value[y][x];
+                } else {
+                    d_C_ptr[idx] = alpha * value[y][x] + beta * d_C_ptr[idx];
                 }
             }
         }
     }
 }
 
-void matmul(torch::Tensor a, torch::Tensor b, torch::Tensor out, float beta = 0.0f) {
+void matmul(torch::Tensor a, torch::Tensor b, torch::Tensor out, float alpha = 1.0f, float beta = 0.0f) {
     int C_n_rows = a.size(0);
     int C_n_cols = b.size(1);
     int A_n_cols = a.size(1);
@@ -148,9 +152,14 @@ void matmul(torch::Tensor a, torch::Tensor b, torch::Tensor out, float beta = 0.
     dim3 dim_block(TILE_A_ROWS * TILE_B_COLS / (ROWS_PER_THREAD * COLS_PER_THREAD));
     dim3 dim_grid(ceil(C_n_cols / (float)(TILE_B_COLS)), ceil(C_n_rows / (float)(TILE_A_ROWS)));
 
-    if (beta == 0.0f) {
-        matmul_kernel<true><<<dim_grid, dim_block>>>(a.data_ptr<float>(), b.data_ptr<float>(), out.data_ptr<float>(), C_n_rows, C_n_cols, A_n_cols, beta);
+    constexpr float eps = 1e-6f;
+    bool alpha_one = fabs(alpha - 1.0f) < eps;
+    bool beta_zero = fabs(beta) < eps;
+
+    if (alpha_one && beta_zero) {
+        matmul_kernel<true, true><<<dim_grid, dim_block>>>(a.data_ptr<float>(), b.data_ptr<float>(), out.data_ptr<float>(), C_n_rows, C_n_cols, A_n_cols, alpha, beta);
+    } else if (alpha_one) {
     } else {
-        matmul_kernel<false><<<dim_grid, dim_block>>>(a.data_ptr<float>(), b.data_ptr<float>(), out.data_ptr<float>(), C_n_rows, C_n_cols, A_n_cols, beta);
+        matmul_kernel<false, false><<<dim_grid, dim_block>>>(a.data_ptr<float>(), b.data_ptr<float>(), out.data_ptr<float>(), C_n_rows, C_n_cols, A_n_cols, alpha, beta);
     }
 }
