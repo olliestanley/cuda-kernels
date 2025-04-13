@@ -159,6 +159,9 @@ void matmul(torch::Tensor a, torch::Tensor b, torch::Tensor out, float alpha = 1
     if (alpha_one && beta_zero) {
         matmul_kernel<true, true><<<dim_grid, dim_block>>>(a.data_ptr<float>(), b.data_ptr<float>(), out.data_ptr<float>(), C_n_rows, C_n_cols, A_n_cols, alpha, beta);
     } else if (alpha_one) {
+        matmul_kernel<true, false><<<dim_grid, dim_block>>>(a.data_ptr<float>(), b.data_ptr<float>(), out.data_ptr<float>(), C_n_rows, C_n_cols, A_n_cols, alpha, beta);
+    } else if (beta_zero) {
+        matmul_kernel<false, true><<<dim_grid, dim_block>>>(a.data_ptr<float>(), b.data_ptr<float>(), out.data_ptr<float>(), C_n_rows, C_n_cols, A_n_cols, alpha, beta);
     } else {
         matmul_kernel<false, false><<<dim_grid, dim_block>>>(a.data_ptr<float>(), b.data_ptr<float>(), out.data_ptr<float>(), C_n_rows, C_n_cols, A_n_cols, alpha, beta);
     }
